@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Turn an image into portable ASCII art entirely in your browser."
+    />
+    <meta name="theme-color" content="#071013" />
+    <title>ASCII Art Generator</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#workspace">Skip to generator</a>
+
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="ASCII Art Generator home">
+        <span class="brand-mark" aria-hidden="true">A:</span>
+        <span>ASCII Art Generator</span>
+      </a>
+      <span class="local-badge">Runs locally</span>
+    </header>
+
+    <main id="workspace" class="page-shell">
+      <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow">Image in. Characters out.</p>
+        <h1 id="page-title">Turn any moment into text.</h1>
+        <p>
+          Drop in an image, shape its density with your own character ramp, and
+          take the result anywhere plain text can go.
+        </p>
+      </section>
+
+      <div class="workspace-grid">
+        <section class="panel source-panel" aria-labelledby="source-heading">
+          <div class="panel-heading">
+            <div>
+              <p class="step-label">01 / Source</p>
+              <h2 id="source-heading">Choose an image</h2>
+            </div>
+            <span id="source-dimensions" class="metadata"></span>
+          </div>
+
+          <input id="file-input" class="visually-hidden" type="file" accept="image/*" />
+          <button
+            id="drop-zone"
+            class="drop-zone"
+            type="button"
+            aria-describedby="drop-help"
+          >
+            <span class="drop-icon" aria-hidden="true">+</span>
+            <span class="drop-copy">
+              <strong>Drop an image here</strong>
+              <span id="drop-help">or choose PNG, JPEG, WebP, GIF, or another browser-supported format</span>
+            </span>
+            <span class="button secondary" aria-hidden="true">Choose image</span>
+          </button>
+
+          <figure id="source-preview-frame" class="source-preview" hidden>
+            <img id="source-preview" alt="Selected source" />
+            <figcaption id="source-name"></figcaption>
+          </figure>
+
+          <fieldset class="controls">
+            <legend>Conversion settings</legend>
+
+            <label class="field" for="ramp-input">
+              <span class="field-header">
+                <span>Character ramp</span>
+                <span>dark <span aria-hidden="true">→</span> light</span>
+              </span>
+              <input
+                id="ramp-input"
+                type="text"
+                maxlength="256"
+                autocomplete="off"
+                spellcheck="false"
+                aria-describedby="ramp-help settings-error"
+              />
+              <small id="ramp-help">Use 2–256 printable ASCII characters. Spaces count.</small>
+            </label>
+
+            <div class="field">
+              <div class="field-header">
+                <label for="columns-range">Output width</label>
+                <label class="number-label" for="columns-number">
+                  <input id="columns-number" type="number" min="10" max="400" step="1" value="120" />
+                  <span>columns</span>
+                </label>
+              </div>
+              <input id="columns-range" type="range" min="10" max="400" step="1" value="120" />
+            </div>
+
+            <p id="settings-error" class="field-error" role="alert"></p>
+          </fieldset>
+        </section>
+
+        <section class="panel output-panel" aria-labelledby="output-heading">
+          <div class="panel-heading output-heading">
+            <div>
+              <p class="step-label">02 / Result</p>
+              <h2 id="output-heading">ASCII preview</h2>
+            </div>
+            <div class="actions">
+              <button id="copy-button" class="button secondary" type="button" disabled>Copy</button>
+              <button id="download-button" class="button primary" type="button" disabled>Download .txt</button>
+            </div>
+          </div>
+
+          <div id="preview-shell" class="preview-shell" data-empty="true">
+            <div id="empty-preview" class="empty-preview" aria-hidden="true">
+              <span>@%#*+=-:.</span>
+              <p>Your converted image will appear here.</p>
+            </div>
+            <pre id="ascii-output" tabindex="0" aria-label="Generated ASCII art"></pre>
+          </div>
+
+          <div class="status-row">
+            <p id="status" class="status" role="status" aria-live="polite">Loading converter…</p>
+            <span id="output-dimensions" class="metadata"></span>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <span>Nothing is uploaded. Your image stays in this browser.</span>
+      <a href="https://github.com/svsam/ASCIIArtGenerator" rel="noreferrer">Open source</a>
+    </footer>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

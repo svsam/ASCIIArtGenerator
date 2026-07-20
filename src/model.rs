@@ -221,6 +221,7 @@ pub enum ConversionError {
     OutputTooLarge,
 }
 
+#[cfg(feature = "desktop")]
 #[derive(Debug, Error)]
 pub enum ImageLoadError {
     #[error("could not read the image: {0}")]

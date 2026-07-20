@@ -44,6 +44,24 @@ sudo apt-get install build-essential pkg-config libdbus-1-dev libxkbcommon-dev l
 
 At runtime, Linux also needs an XDG Desktop Portal backend such as `xdg-desktop-portal-gtk` or `xdg-desktop-portal-kde`. `zenity` is used as a file-dialog fallback.
 
+## Run the web app
+
+The repository also contains a small browser version. It accepts one image at a time, lets you change the dark-to-light character ramp and output width, and produces monochrome ASCII that you can copy or download. Conversion runs locally in a Web Worker through WebAssembly; the source image is never uploaded.
+
+The web build needs [Node.js](https://nodejs.org/) 18 or newer, the Rust WebAssembly target, and [`wasm-pack`](https://wasm-bindgen.github.io/wasm-pack/):
+
+```shell
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack --version 0.15.0 --locked
+npm ci
+npm run build:web
+npm run serve:web
+```
+
+Open `http://127.0.0.1:4173` after the server starts. The complete static site is generated in `dist/web/`; copy that directory to any static web host. It must be served over HTTP rather than opened directly from disk because the JavaScript loads the Wasm module as an ES module. Production hosting should use HTTPS so browsers permit the **Copy** button to access the clipboard.
+
+Image decoding uses the browser, with PNG, JPEG, WebP, and the first frame of GIF as the primary supported formats. Other image types work when the visitor's browser can decode them. Very large sources are sampled down to a maximum edge of 4096 pixels before conversion.
+
 ## How the conversion works
 
 The program does not try to identify objects in the image. It works directly with the pixels, which keeps the result predictable and gives you control over the artistic choices.
@@ -83,26 +101,30 @@ Interactive edits are converted in the background, so the preview stays responsi
 - Single-image export opens a save dialog. Batch export asks for a folder and uses names such as `photo_ascii.txt` and `photo_ascii.ansi.txt`.
 - Exports are written through a temporary sibling file before replacement, so an interrupted conversion does not leave a partial output file behind.
 
-## Future direction: a website widget
+## Web app and future widget direction
 
-The next major direction is compatibility with websites as an embeddable widget. The goal is a small browser-facing version that a site can place beside an upload field or inside a creative tool: visitors could drop in an image, adjust a simple character ramp and size, preview the result in a responsive `<pre>` block, then copy or download the text.
+The first browser-facing version is now implemented as the standalone static web app described above. Visitors can drop in an image, adjust a character ramp and size, preview the result in a responsive `<pre>` block, then copy or download the text.
 
-The current app is a native desktop editor, so that widget is not implemented yet. Its independent conversion engine is a good foundation for a future WebAssembly adapter and a reusable web component or JavaScript package. That work would need browser-safe image loading, a web UI, and an embedding API before it can be used on websites.
+The Rust conversion engine is compiled through a small WebAssembly adapter while browser APIs handle image loading and downloads. A reusable custom element or npm package with a stable embedding API is still future work; this release intentionally provides a standalone app and copyable static assets instead.
 
 Other possible future additions include animation export, editable project files, and richer colour-profile support.
 
 ## Development
 
 ```shell
-cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets --all-features
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-targets --all-features
 cargo build --release
+wasm-pack test --node web-wasm
+npm run test:web
 ```
 
-The conversion engine is available independently of the GUI through the `ascii_art_generator` library. Its public API includes `ConversionSettings`, `CropRect`, `CharacterRamp`, `DitherMode`, `RowSizing`, `AsciiCell`, `AsciiDocument`, `convert`, `render_plain`, and `render_ansi`.
+Install the Playwright browsers once with `npx playwright install chromium firefox webkit` before running the web test suite locally. `npm run test:web` rebuilds `dist/web`, starts a local server, and exercises the app in all three browser engines.
 
-GitHub Actions checks formatting, Clippy, and tests, then produces unsigned portable artifacts for Windows x86-64, Linux x86-64, macOS Apple Silicon, and macOS Intel. macOS artifacts are not signed or notarized.
+The conversion engine is available independently of the GUI through the `ascii_art_generator` library. Its public API includes `ConversionSettings`, `CropRect`, `CharacterRamp`, `DitherMode`, `RowSizing`, `AsciiCell`, `AsciiDocument`, `convert`, `render_plain`, and `render_ansi`. Native file decoding and filesystem export are part of the default `desktop` feature; use `default-features = false` for the browser-safe conversion core.
+
+GitHub Actions checks formatting, Clippy, native and WebAssembly tests, and the browser suite. It produces a copyable `ascii-art-generator-web` static-site artifact plus unsigned portable desktop artifacts for Windows x86-64, Linux x86-64, macOS Apple Silicon, and macOS Intel. macOS artifacts are not signed or notarized.
 
 ## License
 

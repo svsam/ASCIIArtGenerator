@@ -1,3 +1,4 @@
+#[cfg(feature = "desktop")]
 use std::{
     collections::HashSet,
     fs,
@@ -5,16 +6,19 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(feature = "desktop")]
 use tempfile::Builder;
 
 use crate::AsciiDocument;
 
+#[cfg(feature = "desktop")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ExportFormats {
     pub plain: bool,
     pub ansi: bool,
 }
 
+#[cfg(feature = "desktop")]
 impl Default for ExportFormats {
     fn default() -> Self {
         Self {
@@ -24,6 +28,7 @@ impl Default for ExportFormats {
     }
 }
 
+#[cfg(feature = "desktop")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BatchOutputPaths {
     pub plain: Option<PathBuf>,
@@ -68,6 +73,7 @@ pub fn render_ansi(document: &AsciiDocument) -> String {
 }
 
 /// Produces deterministic, non-colliding names for a batch in queue order.
+#[cfg(feature = "desktop")]
 pub fn batch_output_paths(
     sources: &[PathBuf],
     destination: &Path,
@@ -117,6 +123,7 @@ pub fn batch_output_paths(
 }
 
 /// Writes beside the destination and then atomically persists the completed file.
+#[cfg(feature = "desktop")]
 pub fn atomic_write(path: &Path, contents: &[u8]) -> io::Result<()> {
     let parent = path.parent().unwrap_or_else(|| Path::new("."));
     fs::create_dir_all(parent)?;
@@ -169,6 +176,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "desktop")]
     fn duplicate_stems_receive_stable_suffixes() {
         let paths = batch_output_paths(
             &[PathBuf::from("a/photo.png"), PathBuf::from("b/photo.jpg")],

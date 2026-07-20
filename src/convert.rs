@@ -1,12 +1,18 @@
+#[cfg(feature = "desktop")]
 use std::path::Path;
 
-use image::{DynamicImage, ImageDecoder, ImageReader, RgbaImage};
+use image::RgbaImage;
+#[cfg(feature = "desktop")]
+use image::{DynamicImage, ImageDecoder, ImageReader};
 
+#[cfg(feature = "desktop")]
+use crate::model::ImageLoadError;
 use crate::model::{
     AsciiCell, AsciiDocument, ConversionError, ConversionSettings, CropRect, DitherMode,
-    ImageLoadError, MAX_OUTPUT_CELLS, RowSizing,
+    MAX_OUTPUT_CELLS, RowSizing,
 };
 
+#[cfg(feature = "desktop")]
 pub fn decode_image(path: impl AsRef<Path>) -> Result<RgbaImage, ImageLoadError> {
     let reader = ImageReader::open(path)?.with_guessed_format()?;
     let mut decoder = reader.into_decoder()?;
