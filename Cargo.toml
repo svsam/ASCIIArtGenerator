@@ -1,0 +1,26 @@
+[package]
+name = "ascii-art-generator"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+description = "A cross-platform desktop editor for converting images into ASCII art"
+license = "MIT"
+
+[lib]
+name = "ascii_art_generator"
+path = "src/lib.rs"
+
+[dependencies]
+eframe = { version = "0.35.0", features = ["persistence"] }
+image = { version = "0.25.10", default-features = false, features = ["bmp", "gif", "jpeg", "png", "tiff", "webp"] }
+rfd = "0.17.2"
+serde = { version = "1.0", features = ["derive"] }
+tempfile = "3.23"
+thiserror = "2.0"
+
+[dev-dependencies]
+serde_json = "1.0"
+
+[profile.release]
+lto = "thin"
+strip = true

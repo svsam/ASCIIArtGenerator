@@ -1,0 +1,100 @@
+name: CI and portable builds
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quality:
+    name: Format, Clippy, and tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Linux build dependencies
+        run: >-
+          sudo apt-get update && sudo apt-get install -y
+          pkg-config libdbus-1-dev libxkbcommon-dev libwayland-dev
+          libx11-dev libxi-dev libgl1-mesa-dev
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.92.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo test --all-targets --all-features
+
+  portable-builds:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x86-64
+            runner: windows-2025
+            artifact: ascii-art-generator-windows-x86_64
+            platform: windows
+          - name: Linux x86-64
+            runner: ubuntu-24.04
+            artifact: ascii-art-generator-linux-x86_64
+            platform: linux
+          - name: macOS Apple Silicon
+            runner: macos-15
+            artifact: ascii-art-generator-macos-aarch64
+            platform: macos
+          - name: macOS Intel
+            runner: macos-15-intel
+            artifact: ascii-art-generator-macos-x86_64
+            platform: macos
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: >-
+          sudo apt-get update && sudo apt-get install -y
+          pkg-config libdbus-1-dev libxkbcommon-dev libwayland-dev
+          libx11-dev libxi-dev libgl1-mesa-dev
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.92.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release --locked
+      - name: Package Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist/package
+          Copy-Item target/release/ascii-art-generator.exe,README.md,LICENSE dist/package
+          Compress-Archive -Path dist/package/* -DestinationPath dist/${{ matrix.artifact }}.zip
+      - name: Package Linux
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p dist/package
+          cp target/release/ascii-art-generator README.md LICENSE dist/package/
+          tar -C dist/package -czf dist/${{ matrix.artifact }}.tar.gz .
+      - name: Package macOS app
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p "dist/ASCII Art Generator.app/Contents/MacOS"
+          cp target/release/ascii-art-generator "dist/ASCII Art Generator.app/Contents/MacOS/"
+          cp packaging/macos/Info.plist "dist/ASCII Art Generator.app/Contents/"
+          cp README.md LICENSE dist/
+          ditto -c -k --keepParent "dist/ASCII Art Generator.app" "dist/${{ matrix.artifact }}.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+          if-no-files-found: error
+
