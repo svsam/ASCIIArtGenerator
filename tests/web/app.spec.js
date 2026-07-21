@@ -14,7 +14,8 @@ test("loads Wasm and converts a selected image", async ({ page }) => {
   await expect(page.locator("#copy-button")).toBeEnabled();
   await expect(page.locator("#download-button")).toBeEnabled();
   const output = await page.locator("#ascii-output").textContent();
-  expect(output).toContain("@");
+  expect(output).toContain("|");
+  expect(output).toContain(".");
   expect(output).toMatch(/\n$/);
 });
 
@@ -46,7 +47,7 @@ test("validates settings and renders only the latest width", async ({ page }) =>
   await expect(page.locator("#settings-error")).toContainText("2–256");
   await expect(page.locator("#copy-button")).toBeDisabled();
 
-  await page.locator("#ramp-input").fill("@ ");
+  await page.locator("#ramp-input").fill(".|");
   await page.locator("#columns-number").fill("400");
   await page.waitForTimeout(180);
   await page.locator("#columns-number").fill("20");
@@ -60,6 +61,27 @@ test("validates settings and renders only the latest width", async ({ page }) =>
     })
     .toBe(20);
   await expect(page.locator("#columns-range")).toHaveValue("20");
+});
+
+test("applies and resets tone and colour controls", async ({ page }) => {
+  await page.goto("/");
+  await uploadImage(page, { width: 128, height: 64 });
+  await expect(page.locator("#copy-button")).toBeEnabled();
+  const original = await page.locator("#ascii-output").textContent();
+
+  await page.locator("#brightness-input").fill("1");
+  await expect(page.locator("#brightness-value")).toHaveText("1.00");
+  await expect(page.locator("#copy-button")).toBeDisabled();
+  await expect(page.locator("#copy-button")).toBeEnabled();
+  const brightened = await page.locator("#ascii-output").textContent();
+  expect(brightened).not.toBe(original);
+  expect(brightened).toMatch(/^(\.+\n)+$/);
+
+  await page.locator("#reset-tone-button").click();
+  await expect(page.locator("#brightness-value")).toHaveText("0.00");
+  await expect(page.locator("#copy-button")).toBeDisabled();
+  await expect(page.locator("#copy-button")).toBeEnabled();
+  await expect(page.locator("#ascii-output")).toHaveText(original);
 });
 
 test("reports image decode failures without enabling output actions", async ({ page }) => {

@@ -33,7 +33,20 @@ self.addEventListener("message", async (event) => {
       if (!sourceImage || message.imageId !== activeImageId) {
         throw new Error("The source image is no longer available.");
       }
-      const text = sourceImage.render(message.columns, message.ramp);
+      const text = sourceImage.render_adjusted(
+        message.columns,
+        message.ramp,
+        message.brightness,
+        message.contrast,
+        message.gamma,
+        message.saturation,
+        message.redGain,
+        message.greenGain,
+        message.blueGain,
+        message.matte[0],
+        message.matte[1],
+        message.matte[2],
+      );
       self.postMessage({
         type: "result",
         requestId: message.requestId,

@@ -65,7 +65,7 @@ pub enum DitherMode {
     Bayer4x4,
 }
 
-/// A density ramp ordered from the darkest glyph to the lightest glyph.
+/// A density ramp ordered from the lightest glyph to the darkest glyph.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CharacterRamp {
     pub name: String,
@@ -96,9 +96,9 @@ impl CharacterRamp {
 
     pub fn built_ins() -> Vec<Self> {
         vec![
-            Self::new("Classic", "@%#*+=-:. "),
-            Self::new("Compact", "@#*:. "),
-            Self::new("Detailed", "MWN$@%#*+=-;:,. "),
+            Self::new("Classic", ".:-=+*#%@|"),
+            Self::new("Compact", " .:*#@"),
+            Self::new("Detailed", " .,:;-=+*#%@$NWM"),
         ]
     }
 }
@@ -253,6 +253,11 @@ mod tests {
         assert!(CharacterRamp::new("valid", "@@. ").validate().is_ok());
         assert!(CharacterRamp::new("unicode", "@▓ ").validate().is_err());
         assert!(CharacterRamp::new("newline", "@\n ").validate().is_err());
+    }
+
+    #[test]
+    fn classic_ramp_runs_from_light_to_dark() {
+        assert_eq!(CharacterRamp::default().characters, ".:-=+*#%@|");
     }
 
     #[test]

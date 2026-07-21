@@ -24,6 +24,37 @@ impl AsciiImage {
     pub fn render(&self, columns: u32, ramp: &str) -> Result<String, JsError> {
         render_image(&self.image, columns, ramp).map_err(|message| JsError::new(&message))
     }
+
+    /// Converts with the tone and colour controls exposed by the web editor.
+    #[allow(clippy::too_many_arguments)]
+    pub fn render_adjusted(
+        &self,
+        columns: u32,
+        ramp: &str,
+        brightness: f32,
+        contrast: f32,
+        gamma: f32,
+        saturation: f32,
+        red_gain: f32,
+        green_gain: f32,
+        blue_gain: f32,
+        matte_red: u8,
+        matte_green: u8,
+        matte_blue: u8,
+    ) -> Result<String, JsError> {
+        let settings = ConversionSettings {
+            columns,
+            ramp: CharacterRamp::new("Web", ramp),
+            brightness,
+            contrast,
+            gamma,
+            saturation,
+            rgb_gain: [red_gain, green_gain, blue_gain],
+            transparency_matte: [matte_red, matte_green, matte_blue],
+            ..ConversionSettings::default()
+        };
+        render_with_settings(&self.image, &settings).map_err(|message| JsError::new(&message))
+    }
 }
 
 fn create_image(width: u32, height: u32, rgba: Vec<u8>) -> Result<RgbaImage, String> {
@@ -52,7 +83,14 @@ fn render_image(image: &RgbaImage, columns: u32, ramp: &str) -> Result<String, S
         ramp: CharacterRamp::new("Web", ramp),
         ..ConversionSettings::default()
     };
-    convert(image, CropRect::FULL, &settings)
+    render_with_settings(image, &settings)
+}
+
+fn render_with_settings(
+    image: &RgbaImage,
+    settings: &ConversionSettings,
+) -> Result<String, String> {
+    convert(image, CropRect::FULL, settings)
         .map(|document| render_plain(&document))
         .map_err(|error| error.to_string())
 }
@@ -74,7 +112,7 @@ mod tests {
     #[test]
     fn rejects_invalid_columns_and_ramps() {
         let image = RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 255]));
-        assert!(render_image(&image, 0, "@ ").is_err());
+        assert!(render_image(&image, 0, ".|").is_err());
         assert!(render_image(&image, 1, "@").is_err());
         assert!(render_image(&image, 1, "@▓ ").is_err());
     }
@@ -84,13 +122,13 @@ mod tests {
         let mut image = RgbaImage::new(2, 1);
         image.put_pixel(0, 0, Rgba([0, 0, 0, 255]));
         image.put_pixel(1, 0, Rgba([255, 255, 255, 255]));
-        assert_eq!(render_image(&image, 2, "@ ").unwrap(), "@ \n");
+        assert_eq!(render_image(&image, 2, ".|").unwrap(), "|.\n");
     }
 
     #[test]
     fn transparent_pixels_use_the_default_white_matte() {
         let image = RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 0]));
-        assert_eq!(render_image(&image, 1, "@ ").unwrap(), " \n");
+        assert_eq!(render_image(&image, 1, ".|").unwrap(), ".\n");
     }
 
     #[test]
@@ -103,11 +141,29 @@ mod tests {
             row_sizing: RowSizing::Auto {
                 character_cell_ratio: 0.5,
             },
-            ramp: CharacterRamp::new("Web", "@#:. "),
+            ramp: CharacterRamp::new("Web", " .:#@"),
             ..ConversionSettings::default()
         };
         let expected = render_plain(&convert(&image, CropRect::FULL, &settings).unwrap());
-        assert_eq!(render_image(&image, 6, "@#:. ").unwrap(), expected);
+        assert_eq!(render_image(&image, 6, " .:#@").unwrap(), expected);
+    }
+
+    #[test]
+    fn adjusted_render_applies_tone_colour_and_matte_settings() {
+        let image = RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 0]));
+        let dark_matte = ConversionSettings {
+            columns: 1,
+            ramp: CharacterRamp::new("Web", ".|"),
+            transparency_matte: [0, 0, 0],
+            ..ConversionSettings::default()
+        };
+        let bright_matte = ConversionSettings {
+            transparency_matte: [255, 255, 255],
+            ..dark_matte.clone()
+        };
+
+        assert_eq!(render_with_settings(&image, &dark_matte).unwrap(), "|\n");
+        assert_eq!(render_with_settings(&image, &bright_matte).unwrap(), ".\n");
     }
 }
 
@@ -120,6 +176,6 @@ mod wasm_tests {
     #[wasm_bindgen_test]
     fn exported_class_retains_and_renders_an_image() {
         let image = AsciiImage::new(1, 1, vec![0, 0, 0, 255]).unwrap();
-        assert_eq!(image.render(1, "@ ").unwrap(), "@\n");
+        assert_eq!(image.render(1, ".|").unwrap(), "|\n");
     }
 }

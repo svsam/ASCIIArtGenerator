@@ -1,12 +1,14 @@
-const CLASSIC_RAMP = "@%#*+=-:. ";
+const CLASSIC_RAMP = ".:-=+*#%@|";
 const MIN_COLUMNS = 10;
 const MAX_COLUMNS = 400;
 const MAX_SOURCE_EDGE = 4096;
 const CONVERSION_DEBOUNCE_MS = 160;
 
 const elements = {
+  openImageButton: document.querySelector("#open-image-button"),
   fileInput: document.querySelector("#file-input"),
   dropZone: document.querySelector("#drop-zone"),
+  sourceStage: document.querySelector("#source-stage"),
   sourcePreviewFrame: document.querySelector("#source-preview-frame"),
   sourcePreview: document.querySelector("#source-preview"),
   sourceName: document.querySelector("#source-name"),
@@ -14,6 +16,22 @@ const elements = {
   rampInput: document.querySelector("#ramp-input"),
   columnsRange: document.querySelector("#columns-range"),
   columnsNumber: document.querySelector("#columns-number"),
+  brightnessInput: document.querySelector("#brightness-input"),
+  brightnessValue: document.querySelector("#brightness-value"),
+  contrastInput: document.querySelector("#contrast-input"),
+  contrastValue: document.querySelector("#contrast-value"),
+  gammaInput: document.querySelector("#gamma-input"),
+  gammaValue: document.querySelector("#gamma-value"),
+  saturationInput: document.querySelector("#saturation-input"),
+  saturationValue: document.querySelector("#saturation-value"),
+  redGainInput: document.querySelector("#red-gain-input"),
+  redGainValue: document.querySelector("#red-gain-value"),
+  greenGainInput: document.querySelector("#green-gain-input"),
+  greenGainValue: document.querySelector("#green-gain-value"),
+  blueGainInput: document.querySelector("#blue-gain-input"),
+  blueGainValue: document.querySelector("#blue-gain-value"),
+  matteInput: document.querySelector("#matte-input"),
+  resetToneButton: document.querySelector("#reset-tone-button"),
   settingsError: document.querySelector("#settings-error"),
   previewShell: document.querySelector("#preview-shell"),
   output: document.querySelector("#ascii-output"),
@@ -39,6 +57,7 @@ const state = {
 };
 
 elements.rampInput.value = CLASSIC_RAMP;
+updateToneOutputs();
 
 const worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
 worker.addEventListener("message", handleWorkerMessage);
@@ -47,6 +66,7 @@ worker.addEventListener("error", () => {
   invalidateOutput();
 });
 
+elements.openImageButton.addEventListener("click", () => elements.fileInput.click());
 elements.dropZone.addEventListener("click", () => elements.fileInput.click());
 elements.fileInput.addEventListener("change", () => {
   void loadFiles(elements.fileInput.files);
@@ -54,21 +74,23 @@ elements.fileInput.addEventListener("change", () => {
 });
 
 for (const eventName of ["dragenter", "dragover"]) {
-  elements.dropZone.addEventListener(eventName, (event) => {
+  elements.sourceStage.addEventListener(eventName, (event) => {
     event.preventDefault();
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = "copy";
     }
     elements.dropZone.classList.add("is-dragging");
+    elements.sourceStage.classList.add("is-dragging");
   });
 }
 for (const eventName of ["dragleave", "drop"]) {
-  elements.dropZone.addEventListener(eventName, (event) => {
+  elements.sourceStage.addEventListener(eventName, (event) => {
     event.preventDefault();
     elements.dropZone.classList.remove("is-dragging");
+    elements.sourceStage.classList.remove("is-dragging");
   });
 }
-elements.dropZone.addEventListener("drop", (event) => {
+elements.sourceStage.addEventListener("drop", (event) => {
   void loadFiles(event.dataTransfer?.files);
 });
 
@@ -82,6 +104,24 @@ elements.columnsNumber.addEventListener("input", () => {
   if (Number.isInteger(columns) && columns >= MIN_COLUMNS && columns <= MAX_COLUMNS) {
     elements.columnsRange.value = String(columns);
   }
+  settingsChanged();
+});
+for (const input of toneInputs()) {
+  input.addEventListener("input", () => {
+    updateToneOutputs();
+    settingsChanged();
+  });
+}
+elements.resetToneButton.addEventListener("click", () => {
+  elements.brightnessInput.value = "0";
+  elements.contrastInput.value = "1";
+  elements.gammaInput.value = "1";
+  elements.saturationInput.value = "1";
+  elements.redGainInput.value = "1";
+  elements.greenGainInput.value = "1";
+  elements.blueGainInput.value = "1";
+  elements.matteInput.value = "#ffffff";
+  updateToneOutputs();
   settingsChanged();
 });
 elements.copyButton.addEventListener("click", copyOutput);
@@ -168,6 +208,7 @@ function updateSourcePreview(file, originalWidth, originalHeight, conversionWidt
   elements.sourcePreview.alt = `Selected source: ${file.name || "image"}`;
   elements.sourceName.textContent = file.name || "image";
   elements.sourcePreviewFrame.hidden = false;
+  elements.dropZone.hidden = true;
   const resized = originalWidth !== conversionWidth || originalHeight !== conversionHeight;
   elements.sourceDimensions.textContent = resized
     ? `${originalWidth}×${originalHeight} · sampled at ${conversionWidth}×${conversionHeight}`
@@ -181,6 +222,7 @@ function clearSourcePreview() {
   }
   elements.sourcePreview.removeAttribute("src");
   elements.sourcePreviewFrame.hidden = true;
+  elements.dropZone.hidden = false;
   elements.sourceName.textContent = "";
   elements.sourceDimensions.textContent = "";
 }
@@ -225,7 +267,31 @@ function readSettings() {
     return { ok: false, message: "The character ramp can use printable ASCII characters only." };
   }
 
-  return { ok: true, settings: { columns, ramp } };
+  const numericSettings = [
+    ["brightness", elements.brightnessInput, -1, 1],
+    ["contrast", elements.contrastInput, 0, 3],
+    ["gamma", elements.gammaInput, 0.2, 3],
+    ["saturation", elements.saturationInput, 0, 3],
+    ["redGain", elements.redGainInput, 0, 3],
+    ["greenGain", elements.greenGainInput, 0, 3],
+    ["blueGain", elements.blueGainInput, 0, 3],
+  ];
+  const settings = { columns, ramp };
+  for (const [name, input, minimum, maximum] of numericSettings) {
+    const value = Number(input.value);
+    if (!Number.isFinite(value) || value < minimum || value > maximum) {
+      return { ok: false, message: "One or more tone and colour values are outside the allowed range." };
+    }
+    settings[name] = value;
+  }
+
+  const matte = /^#([0-9a-f]{6})$/i.exec(elements.matteInput.value);
+  if (!matte) {
+    return { ok: false, message: "Choose a valid transparency matte colour." };
+  }
+  settings.matte = [0, 2, 4].map((offset) => Number.parseInt(matte[1].slice(offset, offset + 2), 16));
+
+  return { ok: true, settings };
 }
 
 function queueConversion(settings, settingsVersion = state.settingsVersion) {
@@ -257,7 +323,43 @@ function sendPendingConversion() {
     imageId: settings.imageId,
     columns: settings.columns,
     ramp: settings.ramp,
+    brightness: settings.brightness,
+    contrast: settings.contrast,
+    gamma: settings.gamma,
+    saturation: settings.saturation,
+    redGain: settings.redGain,
+    greenGain: settings.greenGain,
+    blueGain: settings.blueGain,
+    matte: settings.matte,
   });
+}
+
+function toneInputs() {
+  return [
+    elements.brightnessInput,
+    elements.contrastInput,
+    elements.gammaInput,
+    elements.saturationInput,
+    elements.redGainInput,
+    elements.greenGainInput,
+    elements.blueGainInput,
+    elements.matteInput,
+  ];
+}
+
+function updateToneOutputs() {
+  const pairs = [
+    [elements.brightnessInput, elements.brightnessValue],
+    [elements.contrastInput, elements.contrastValue],
+    [elements.gammaInput, elements.gammaValue],
+    [elements.saturationInput, elements.saturationValue],
+    [elements.redGainInput, elements.redGainValue],
+    [elements.greenGainInput, elements.greenGainValue],
+    [elements.blueGainInput, elements.blueGainValue],
+  ];
+  for (const [input, output] of pairs) {
+    output.value = Number(input.value).toFixed(2);
+  }
 }
 
 function handleWorkerMessage(event) {

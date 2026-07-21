@@ -81,9 +81,9 @@ pub fn convert(
         .zip(colors)
         .map(|(index, rgb)| {
             let index = if settings.invert_density {
-                ramp.len() - 1 - index
-            } else {
                 index
+            } else {
+                ramp.len() - 1 - index
             };
             AsciiCell {
                 character: ramp[index],
@@ -259,17 +259,17 @@ mod tests {
         let mut image = RgbaImage::new(2, 1);
         image.put_pixel(0, 0, Rgba([0, 0, 0, 255]));
         image.put_pixel(1, 0, Rgba([255, 255, 255, 255]));
-        let document = convert(&image, CropRect::FULL, &exact_settings(2, 1, "@ ")).unwrap();
-        assert_eq!(document.cells[0].character, '@');
-        assert_eq!(document.cells[1].character, ' ');
+        let document = convert(&image, CropRect::FULL, &exact_settings(2, 1, ".|")).unwrap();
+        assert_eq!(document.cells[0].character, '|');
+        assert_eq!(document.cells[1].character, '.');
     }
 
     #[test]
     fn invert_changes_density_but_not_color() {
         let image = RgbaImage::from_pixel(1, 1, Rgba([25, 50, 75, 255]));
-        let regular = convert(&image, CropRect::FULL, &exact_settings(1, 1, "@ ")).unwrap();
+        let regular = convert(&image, CropRect::FULL, &exact_settings(1, 1, ".|")).unwrap();
         assert_eq!(regular.cells[0].rgb, [25, 50, 75]);
-        let mut inverted_settings = exact_settings(1, 1, "@ ");
+        let mut inverted_settings = exact_settings(1, 1, ".|");
         inverted_settings.invert_density = true;
         let inverted = convert(&image, CropRect::FULL, &inverted_settings).unwrap();
         assert_ne!(regular.cells[0].character, inverted.cells[0].character);
@@ -279,7 +279,7 @@ mod tests {
     #[test]
     fn transparent_pixels_use_the_selected_matte() {
         let image = RgbaImage::from_pixel(1, 1, Rgba([0, 0, 0, 0]));
-        let mut settings = exact_settings(1, 1, "@ ");
+        let mut settings = exact_settings(1, 1, ".|");
         settings.transparency_matte = [255, 0, 0];
         let document = convert(&image, CropRect::FULL, &settings).unwrap();
         assert_eq!(document.cells[0].rgb, [255, 0, 0]);
@@ -305,7 +305,7 @@ mod tests {
             let value = (x * 255 / 7) as u8;
             Rgba([value, value, value, 255])
         });
-        let mut settings = exact_settings(8, 4, "@#*:. ");
+        let mut settings = exact_settings(8, 4, " .:*#@");
         let plain = convert(&image, CropRect::FULL, &settings).unwrap();
         settings.dither = DitherMode::FloydSteinberg;
         let floyd = convert(&image, CropRect::FULL, &settings).unwrap();

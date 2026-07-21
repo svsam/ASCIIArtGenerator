@@ -7,68 +7,67 @@
       name="description"
       content="Turn an image into portable ASCII art entirely in your browser."
     />
-    <meta name="theme-color" content="#071013" />
+    <meta name="theme-color" content="#1b1b1b" />
     <title>ASCII Art Generator</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <a class="skip-link" href="#workspace">Skip to generator</a>
 
-    <header class="site-header">
+    <header class="app-toolbar">
       <a class="brand" href="./" aria-label="ASCII Art Generator home">
         <span class="brand-mark" aria-hidden="true">A:</span>
         <span>ASCII Art Generator</span>
       </a>
-      <span class="local-badge">Runs locally</span>
+      <div class="toolbar-actions">
+        <button id="open-image-button" class="button" type="button">Open image…</button>
+        <span class="toolbar-separator" aria-hidden="true"></span>
+        <span class="local-badge">Local browser conversion</span>
+      </div>
     </header>
 
-    <main id="workspace" class="page-shell">
-      <section class="hero" aria-labelledby="page-title">
-        <p class="eyebrow">Image in. Characters out.</p>
-        <h1 id="page-title">Turn any moment into text.</h1>
-        <p>
-          Drop in an image, shape its density with your own character ramp, and
-          take the result anywhere plain text can go.
-        </p>
-      </section>
-
+    <main id="workspace" class="editor-shell">
       <div class="workspace-grid">
         <section class="panel source-panel" aria-labelledby="source-heading">
           <div class="panel-heading">
-            <div>
-              <p class="step-label">01 / Source</p>
-              <h2 id="source-heading">Choose an image</h2>
-            </div>
+            <h1 id="source-heading">Source image</h1>
             <span id="source-dimensions" class="metadata"></span>
           </div>
 
           <input id="file-input" class="visually-hidden" type="file" accept="image/*" />
-          <button
-            id="drop-zone"
-            class="drop-zone"
-            type="button"
-            aria-describedby="drop-help"
-          >
-            <span class="drop-icon" aria-hidden="true">+</span>
-            <span class="drop-copy">
-              <strong>Drop an image here</strong>
-              <span id="drop-help">or choose PNG, JPEG, WebP, GIF, or another browser-supported format</span>
-            </span>
-            <span class="button secondary" aria-hidden="true">Choose image</span>
-          </button>
+          <div id="source-stage" class="source-stage">
+            <button
+              id="drop-zone"
+              class="drop-zone"
+              type="button"
+              aria-describedby="drop-help"
+            >
+              <span class="drop-icon" aria-hidden="true">+</span>
+              <span class="drop-copy">
+                <strong>Open or drop an image</strong>
+                <span id="drop-help">PNG, JPEG, WebP, GIF, or another browser-supported format</span>
+              </span>
+            </button>
 
-          <figure id="source-preview-frame" class="source-preview" hidden>
-            <img id="source-preview" alt="Selected source" />
-            <figcaption id="source-name"></figcaption>
-          </figure>
+            <figure id="source-preview-frame" class="source-preview" hidden>
+              <img id="source-preview" alt="Selected source" />
+              <figcaption id="source-name"></figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section class="panel settings-panel" aria-labelledby="settings-heading">
+          <div class="panel-heading">
+            <h2 id="settings-heading">Conversion settings</h2>
+            <button id="reset-tone-button" class="text-button" type="button">Reset tone</button>
+          </div>
 
           <fieldset class="controls">
-            <legend>Conversion settings</legend>
-
+            <legend>Density and size</legend>
             <label class="field" for="ramp-input">
               <span class="field-header">
                 <span>Character ramp</span>
-                <span>dark <span aria-hidden="true">→</span> light</span>
+                <span>light <span aria-hidden="true">→</span> dark</span>
               </span>
               <input
                 id="ramp-input"
@@ -78,7 +77,7 @@
                 spellcheck="false"
                 aria-describedby="ramp-help settings-error"
               />
-              <small id="ramp-help">Use 2–256 printable ASCII characters. Spaces count.</small>
+              <small id="ramp-help">Use 2–256 printable ASCII characters.</small>
             </label>
 
             <div class="field">
@@ -91,42 +90,87 @@
               </div>
               <input id="columns-range" type="range" min="10" max="400" step="1" value="120" />
             </div>
-
-            <p id="settings-error" class="field-error" role="alert"></p>
           </fieldset>
+
+          <fieldset class="controls tone-controls">
+            <legend>Tone and colour</legend>
+
+            <label class="slider-field" for="brightness-input">
+              <span>Brightness</span>
+              <input id="brightness-input" type="range" min="-1" max="1" step="0.01" value="0" />
+              <output id="brightness-value" for="brightness-input">0.00</output>
+            </label>
+            <label class="slider-field" for="contrast-input">
+              <span>Contrast</span>
+              <input id="contrast-input" type="range" min="0" max="3" step="0.01" value="1" />
+              <output id="contrast-value" for="contrast-input">1.00</output>
+            </label>
+            <label class="slider-field" for="gamma-input">
+              <span>Gamma</span>
+              <input id="gamma-input" type="range" min="0.2" max="3" step="0.01" value="1" />
+              <output id="gamma-value" for="gamma-input">1.00</output>
+            </label>
+            <label class="slider-field" for="saturation-input">
+              <span>Saturation</span>
+              <input id="saturation-input" type="range" min="0" max="3" step="0.01" value="1" />
+              <output id="saturation-value" for="saturation-input">1.00</output>
+            </label>
+            <label class="slider-field red-control" for="red-gain-input">
+              <span>Red gain</span>
+              <input id="red-gain-input" type="range" min="0" max="3" step="0.01" value="1" />
+              <output id="red-gain-value" for="red-gain-input">1.00</output>
+            </label>
+            <label class="slider-field green-control" for="green-gain-input">
+              <span>Green gain</span>
+              <input id="green-gain-input" type="range" min="0" max="3" step="0.01" value="1" />
+              <output id="green-gain-value" for="green-gain-input">1.00</output>
+            </label>
+            <label class="slider-field blue-control" for="blue-gain-input">
+              <span>Blue gain</span>
+              <input id="blue-gain-input" type="range" min="0" max="3" step="0.01" value="1" />
+              <output id="blue-gain-value" for="blue-gain-input">1.00</output>
+            </label>
+
+            <label class="matte-field" for="matte-input">
+              <span>
+                <strong>Transparency matte</strong>
+                <small>Colour placed behind transparent pixels</small>
+              </span>
+              <input id="matte-input" type="color" value="#ffffff" />
+            </label>
+          </fieldset>
+
+          <p id="settings-error" class="field-error" role="alert"></p>
         </section>
 
         <section class="panel output-panel" aria-labelledby="output-heading">
           <div class="panel-heading output-heading">
-            <div>
-              <p class="step-label">02 / Result</p>
+            <div class="preview-title">
               <h2 id="output-heading">ASCII preview</h2>
+              <span id="output-dimensions" class="metadata"></span>
             </div>
             <div class="actions">
-              <button id="copy-button" class="button secondary" type="button" disabled>Copy</button>
-              <button id="download-button" class="button primary" type="button" disabled>Download .txt</button>
+              <button id="copy-button" class="button" type="button" disabled>Copy</button>
+              <button id="download-button" class="button" type="button" disabled>Download .txt</button>
             </div>
           </div>
 
           <div id="preview-shell" class="preview-shell" data-empty="true">
             <div id="empty-preview" class="empty-preview" aria-hidden="true">
-              <span>@%#*+=-:.</span>
-              <p>Your converted image will appear here.</p>
+              <span>.:-=+*#%@|</span>
+              <p>Open or drop an image to generate ASCII art.</p>
             </div>
             <pre id="ascii-output" tabindex="0" aria-label="Generated ASCII art"></pre>
           </div>
 
-          <div class="status-row">
-            <p id="status" class="status" role="status" aria-live="polite">Loading converter…</p>
-            <span id="output-dimensions" class="metadata"></span>
-          </div>
+          <p id="status" class="status" role="status" aria-live="polite">Loading converter…</p>
         </section>
       </div>
     </main>
 
-    <footer>
+    <footer class="app-statusbar">
       <span>Nothing is uploaded. Your image stays in this browser.</span>
-      <a href="https://github.com/svsam/ASCIIArtGenerator" rel="noreferrer">Open source</a>
+      <a href="https://github.com/svsam/ASCIIArtGenerator" rel="noreferrer">Source code</a>
     </footer>
 
     <script type="module" src="./app.js"></script>

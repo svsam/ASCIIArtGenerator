@@ -18,7 +18,8 @@ use eframe::egui::{self, Color32, FontId, RichText, Sense, TextFormat, TextureHa
 use image::RgbaImage;
 use serde::{Deserialize, Serialize};
 
-const STORAGE_KEY: &str = "ascii-art-generator-state-v1";
+const STORAGE_KEY: &str = "ascii-art-generator-state-v2";
+const LEGACY_STORAGE_KEY: &str = "ascii-art-generator-state-v1";
 const PREVIEW_DEBOUNCE: Duration = Duration::from_millis(150);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,6 +61,28 @@ impl Default for PersistentState {
             ansi_dark_background: true,
             preview_font_size: 13.0,
         }
+    }
+}
+
+impl PersistentState {
+    fn migrate_legacy_ramp_order(mut self) -> Self {
+        migrate_settings_ramp(&mut self.shared_settings);
+        for preset in &mut self.saved_presets {
+            migrate_settings_ramp(&mut preset.settings);
+        }
+        self
+    }
+}
+
+fn migrate_settings_ramp(settings: &mut ConversionSettings) {
+    settings.ramp.characters = settings.ramp.characters.chars().rev().collect();
+    if let Some(built_in) = CharacterRamp::built_ins()
+        .into_iter()
+        .find(|ramp| ramp.characters == settings.ramp.characters)
+    {
+        settings.ramp.name = built_in.name;
+    } else {
+        settings.ramp.name = "Custom".to_owned();
     }
 }
 
@@ -180,7 +203,12 @@ impl AsciiArtApp {
     pub fn new(creation_context: &eframe::CreationContext<'_>) -> Self {
         let persistent: PersistentState = creation_context
             .storage
-            .and_then(|storage| eframe::get_value(storage, STORAGE_KEY))
+            .and_then(|storage| {
+                eframe::get_value(storage, STORAGE_KEY).or_else(|| {
+                    eframe::get_value::<PersistentState>(storage, LEGACY_STORAGE_KEY)
+                        .map(PersistentState::migrate_legacy_ramp_order)
+                })
+            })
             .unwrap_or_default();
         if persistent.dark_mode {
             creation_context.egui_ctx.set_visuals(egui::Visuals::dark());
@@ -890,17 +918,23 @@ impl AsciiArtApp {
             ui.separator();
 
             let available_height = ui.available_height();
-            let source_height = (available_height * 0.42).max(180.0);
-            ui.allocate_ui(Vec2::new(ui.available_width(), source_height), |ui| {
-                ui.heading("Source and crop");
-                if let Some(texture) = texture.as_ref() {
-                    self.crop_editor(ui, item_id, texture, crop);
-                } else {
-                    ui.spinner();
-                    ui.label("Decoding image…");
-                }
-            });
-            ui.separator();
+            let default_source_height = (available_height * 0.42).max(160.0);
+            let maximum_source_height = (available_height - 190.0).max(160.0);
+            egui::Panel::top("source-and-crop")
+                .default_size(default_source_height)
+                .min_size(140.0)
+                .max_size(maximum_source_height)
+                .resizable(true)
+                .show(ui, |ui| {
+                    ui.heading("Source and crop");
+                    if let Some(texture) = texture.as_ref() {
+                        self.crop_editor(ui, item_id, texture, crop);
+                    } else {
+                        ui.spinner();
+                        ui.label("Decoding image…");
+                    }
+                    ui.allocate_space(ui.available_size());
+                });
             ui.horizontal(|ui| {
                 ui.heading("ASCII preview");
                 ui.selectable_value(&mut self.persistent.color_preview, false, "Monochrome");
@@ -1089,7 +1123,7 @@ fn settings_editor(ui: &mut egui::Ui, settings: &mut ConversionSettings) -> bool
     }
 
     ui.separator();
-    ui.label("Character ramp (dark → light)");
+    ui.label("Character ramp (light → dark)");
     egui::ComboBox::from_id_salt(ui.id().with("built-in-ramp"))
         .selected_text(&settings.ramp.name)
         .show_ui(ui, |ui| {
@@ -1457,5 +1491,27 @@ mod tests {
         );
         assert_eq!(paths.plain, Some(PathBuf::from("art.txt")));
         assert_eq!(paths.ansi, Some(PathBuf::from("art.ansi.txt")));
+    }
+
+    #[test]
+    fn legacy_persistence_migrates_ramps_without_inverting_existing_art() {
+        let mut state = PersistentState::default();
+        state.shared_settings.ramp = CharacterRamp::new("Classic", "@%#*+=-:. ");
+        state.saved_presets.push(SavedPreset {
+            name: "Compact preset".to_owned(),
+            settings: ConversionSettings {
+                ramp: CharacterRamp::new("Compact", "@#*:. "),
+                ..ConversionSettings::default()
+            },
+        });
+
+        let migrated = state.migrate_legacy_ramp_order();
+
+        assert_eq!(migrated.shared_settings.ramp.characters, " .:-=+*#%@");
+        assert_eq!(migrated.shared_settings.ramp.name, "Custom");
+        assert_eq!(
+            migrated.saved_presets[0].settings.ramp,
+            CharacterRamp::new("Compact", " .:*#@")
+        );
     }
 }
