@@ -2,11 +2,41 @@
 
 ASCII Art Generator is a cross-platform Rust desktop editor that turns images into text you can save, share, paste into a terminal, or use wherever a picture is not an option. It exports portable monochrome `.txt` files and, when you want to keep the image's colour, 24-bit ANSI-colour `.ansi.txt` files.
 
-## Why this project exists
+## The problem
 
-Images do not always belong in an image file. Sometimes the nicest version of a picture is a terminal banner, a small piece of text art in a README, a creative message, or something that can travel in a plain-text file. Online converters are useful for a quick experiment, but they often make the important choices for you.
+Images do not always belong in an image file. Sometimes the nicest version of a
+picture is a terminal banner, text art in a README, or something that can travel
+in a plain-text file. Quick online converters often hide the choices that matter:
+how cells are sampled, which characters represent brightness, what happens to
+transparency, and whether colour survives the export.
 
-This project exists to make that process feel hands-on: you can crop the image, decide how much detail you want, choose the characters, tune the colour and contrast, see the result immediately, and export it locally.
+## The approach
+
+The project keeps one platform-independent Rust conversion core and puts two
+interfaces around it. The desktop editor adds cropping, queues, dithering,
+presets, background work, and plain or ANSI-colour export. The browser edition
+compiles the same core to WebAssembly, uses a Web Worker to keep conversion off
+the main thread, and processes the selected image locally.
+
+Pixels are area-averaged in linear sRGB, blended against a chosen transparency
+matte, adjusted for tone and colour, and mapped to a light-to-dark character
+ramp using Rec.709 luminance. The converter stores both the selected character
+and its adjusted colour so one result can drive monochrome text, a coloured
+preview, or 24-bit ANSI output.
+
+## What I found
+
+The conversion itself was only half of the problem. A useful editor also has to
+protect the interface from slow or stale work. On desktop, debounced jobs carry
+generation numbers so an old conversion cannot replace a newer edit. In the
+browser, one worker owns the current Wasm image and coalesces rapid setting
+changes. That structure made it possible to share the important algorithm while
+letting each platform use its native file, clipboard, and interface APIs.
+
+The current result is a working native editor and a deliberately smaller static
+web app. The web version does not yet include desktop cropping, queues, dithering,
+ANSI export, presets, or batch processing; those omissions are current scope, not
+features hidden behind the interface.
 
 ## A quick example
 
